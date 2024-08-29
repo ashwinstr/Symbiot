@@ -1,0 +1,6 @@
+dnspython
+gitpython
+pyrogram
+python-dotenv
+setuptools
+#tgcrypto
