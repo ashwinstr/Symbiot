@@ -1,0 +1,2 @@
+
+from .trigger import Decorator

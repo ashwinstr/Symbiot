@@ -1,6 +1,7 @@
 dnspython
 gitpython
+motor
+pymongo
 pyrogram
 python-dotenv
 setuptools
-#tgcrypto
