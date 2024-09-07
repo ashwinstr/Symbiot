@@ -1,7 +1,9 @@
-dnspython
+aiofiles~=24.1.0
+dnspython~=2.6.1
 gitpython
-motor
+motor~=3.5.1
 pymongo
-pyrogram
-python-dotenv
-setuptools
+pyrogram~=2.0.106
+python-dotenv~=1.0.1
+setuptools~=74.0.0
+tgcrypto

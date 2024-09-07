@@ -2,8 +2,13 @@
 
 from setuptools import setup, find_packages
 
+__version__: str|None = None
+
 with open("requirements.txt", mode="r", encoding="utf-8") as req:
     required = req.readlines()
+
+with open("sym/version.py", mode="r", encoding="utf-8") as version_file:
+    exec(version_file.read())
 
 setup(
     name="symbiot",
@@ -13,7 +18,7 @@ setup(
     classifiers=[
         "Programming language: python3"
     ],
-    # requires=required,
+    version=__version__,
     scripts=["bin/run"],
     install_requires=required
 )

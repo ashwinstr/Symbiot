@@ -1,3 +1,5 @@
-""" default plugins """
+""" Shortcut imports """
 
-from . import executor
+from pyrogram import filters as f
+
+from sym.core import Collection as Col

@@ -9,3 +9,5 @@ from .core.client import Sym
 from .core import Message
 
 sym_dir = os.path.dirname(__file__)
+
+sym = Sym()

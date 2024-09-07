@@ -1,23 +1,26 @@
-""" Monkeypatch to pyrogram's Message """
-import os.path
+""" Monkeypatch to Pyrogram's Message """
 
-from pyrogram import Client
+import os.path
+import re
+from typing import List, Union
+
 from pyrogram.enums import ParseMode
 from pyrogram.errors import MessageAuthorRequired, MessageIdInvalid
+from pyrogram.filters import Filter
 from pyrogram.types import Message as PyroMessage
 
+import sym
 from sym.config import Config
 
 
 class Message(PyroMessage):
     
-    def __init__(self, client, message, **kwargs):
-        # super().__init__(id=self.id)
+    def __init__(self, client: 'sym.Sym', message, **kwargs):
         self._client = client
         super().__init__(client=client, **message, **kwargs)
 
     @classmethod
-    def parse(cls, client: Client, message: PyroMessage, **kwargs):
+    def parse(cls, client: 'sym.Sym', message: PyroMessage, **kwargs):
         vars_ = vars(message)
         if "_client" in vars_.keys():
             del vars_['_client']
@@ -28,9 +31,26 @@ class Message(PyroMessage):
         return self.text.split()[0].strip(Config.CMD_TRIGGER)
 
     @property
+    def flags(self) -> List[Union[str, dict]]:
+        list_ = []
+        text = self.text.splitlines()[0]
+        found = re.findall(r"-\w", text)
+        for flag in found:
+            list_.append(flag)
+        return list_
+
+    @property
+    def filter_text(self) -> str:
+        flags = self.flags
+        input_ = self.input_str
+        for one in flags:
+            input_ = input_.replace(one, "")
+        return input_.strip()
+
+    @property
     def input_str(self) -> str:
         text = self.text
-        return_str = text.split(" ", 1)
+        return_str = text.split(maxsplit=1)
         if len(return_str) != 2:
             return ""
         return return_str[1]
@@ -53,7 +73,7 @@ class Message(PyroMessage):
     ) -> 'Message':
         """ overridden edit method """
         try:
-            message = await super().edit(text, parse_mode, disable_web_page_preview=disable_preview, **kwargs)
+            message: 'Message' = await super().edit(text, parse_mode, disable_web_page_preview=disable_preview, **kwargs)
         except (MessageAuthorRequired, MessageIdInvalid):
             message = await self._client.send_message(
                 self.chat.id,
@@ -83,7 +103,7 @@ class Message(PyroMessage):
             reply_id: int = None,
             **kwargs
     ) -> 'Message':
-        """ convert text to file and send document """
+        """ convert text to file and send as document """
         file_path = os.path.join(Config.TEMP_DIR, file_name)
         with open(file_path, "w+", encoding="utf-8") as file_:
             file_.write(text)
@@ -91,3 +111,11 @@ class Message(PyroMessage):
             reply_id = self.reply_to_message_id if self.reply_to_message else None
         message = await self._client.send_document(self.chat.id, file_path, file_name=file_name, reply_to_message_id=reply_id, caption=caption, **kwargs)
         return self.parse(self._client, message)
+
+    async def read_response(self, filters: Filter = None, timeout: int = 15, ) -> 'Message':
+        async with self._client.Interact(self.chat.id, filters=filters) as _int:
+            response = await _int.read(timeout=timeout)
+        return response
+
+    def interact(self, filters: Filter = None) -> 'sym.sym.Interact':
+        return self._client.Interact(self.chat.id, filters)
