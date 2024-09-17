@@ -24,9 +24,9 @@ class Load(Client):
             Load.CMDS[self.name] = self
 
         @staticmethod
-        def get_cmd(cmd_name: str) -> 'Load.Commands':
-            dict_ = Load.CMDS.get(cmd_name)
-            if not dict_:
+        def get_cmd(cmd_name: str, null_return: bool = False) -> 'Load.Commands|None':
+            dict_ = Load.CMDS.get(cmd_name, None)
+            if not dict_ and not null_return:
                 raise Load.Commands.CommandNotFound(cmd_name)
             return dict_
 

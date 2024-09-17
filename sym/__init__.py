@@ -2,6 +2,7 @@ import os.path
 
 from dotenv import load_dotenv
 
+
 if os.path.exists("config.env"):
     load_dotenv("config.env")
 

@@ -27,16 +27,22 @@ class Message(PyroMessage):
         return cls(client, vars_, **kwargs)
 
     @property
-    def cmd(self) -> str:
-        return self.text.split()[0].strip(Config.CMD_TRIGGER)
+    def cmd(self) -> str|None:
+        match_ = re.search(rf"^{Config.CMD_TRIGGER}(\w+)(?:\s\S.*)?", self.text)
+        if match_:
+            return self.text.split()[0].lstrip(Config.CMD_TRIGGER)
+        return None
 
     @property
     def flags(self) -> List[Union[str, dict]]:
         list_ = []
         text = self.text.splitlines()[0]
-        found = re.findall(r"-\w", text)
-        for flag in found:
-            list_.append(flag)
+        found_dict: List[tuple] = re.findall(r"(-[a-z]+)(\d+)\s", text)
+        found_string: List[re.Match] = re.findall(r"(-[a-z]+)\s", text)
+        for dict_flag in found_dict:
+            list_.append({dict_flag[0]: dict_flag[1]})
+        for str_flag in found_string:
+            list_.append(str_flag)
         return list_
 
     @property
@@ -44,7 +50,13 @@ class Message(PyroMessage):
         flags = self.flags
         input_ = self.input_str
         for one in flags:
-            input_ = input_.replace(one, "")
+            flag = ""
+            if isinstance(one, dict):
+                for key in one:
+                    flag = f"{key}{one[key]}"
+            else:
+                flag = one
+            input_ = input_.replace(flag, "")
         return input_.strip()
 
     @property
@@ -53,7 +65,7 @@ class Message(PyroMessage):
         return_str = text.split(maxsplit=1)
         if len(return_str) != 2:
             return ""
-        return return_str[1]
+        return return_str[1].strip()
 
     @property
     def replied(self) -> 'Message':
@@ -69,9 +81,12 @@ class Message(PyroMessage):
             text: str,
             parse_mode: ParseMode = ParseMode.DEFAULT,
             disable_preview: bool = False,
+            reply_to_id: int = None,
             **kwargs
     ) -> 'Message':
         """ overridden edit method """
+        if not reply_to_id:
+            reply_to_id = self.reply_to_message_id
         try:
             message: 'Message' = await super().edit(text, parse_mode, disable_web_page_preview=disable_preview, **kwargs)
         except (MessageAuthorRequired, MessageIdInvalid):
@@ -79,11 +94,35 @@ class Message(PyroMessage):
                 self.chat.id,
                 text,
                 parse_mode,
-                reply_to_message_id=self.reply_to_message.id if self.reply_to_message else None,
+                reply_to_message_id=reply_to_id,
                 disable_web_page_preview=disable_preview
             )
         self.id = message.id
         return self.parse(message._client,message)
+
+    async def edit_mono(self, text: str, disable_preview: bool = False, **kwargs) -> 'Message':
+        """ Edit message with mono text markdown """
+        text = f"```text\n{text}```"
+        return await self.edit(text, parse_mode=ParseMode.MARKDOWN, disable_preview=disable_preview, **kwargs)
+
+    async def edit_or_send_file(
+            self,
+            text: str,
+            file_name: str = "file.txt",
+            caption: str = "",
+            parse_mode: ParseMode = ParseMode.DEFAULT,
+            disable_preview: bool = False,
+            reply_to_id: int = None
+    ) -> 'Message':
+        """ Safe edit text """
+        if len(text) <= 4096:
+            return await self.edit(
+                text,
+                parse_mode=parse_mode,
+                disable_preview=disable_preview,
+                reply_to_id=reply_to_id
+            )
+        return await self.send_as_file(text, file_name, caption, reply_to_id)
 
     async def err(
             self,
@@ -108,7 +147,7 @@ class Message(PyroMessage):
         with open(file_path, "w+", encoding="utf-8") as file_:
             file_.write(text)
         if not reply_id:
-            reply_id = self.reply_to_message_id if self.reply_to_message else None
+            reply_id = self.reply_to_message_id
         message = await self._client.send_document(self.chat.id, file_path, file_name=file_name, reply_to_message_id=reply_id, caption=caption, **kwargs)
         return self.parse(self._client, message)
 
@@ -119,3 +158,10 @@ class Message(PyroMessage):
 
     def interact(self, filters: Filter = None) -> 'sym.sym.Interact':
         return self._client.Interact(self.chat.id, filters)
+
+    async def interact_once(self, text: str, filters: Filter = None, timeout: int = 15) -> 'Message':
+        """ Interact wrapper for single response """
+        async with self.interact(filters=filters) as _i:
+            await _i.write_message(text=text)
+            reply_ = await _i.read(filters=filters, timeout=timeout)
+        return reply_

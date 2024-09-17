@@ -27,7 +27,7 @@ class Listener(Client):
         @staticmethod
         def add_listener(client: 'sym.Sym') -> tuple:
             filter_ = f.create(lambda _, __, m: m.chat.id in Listener.interaction_dict.keys())
-            return client.add_handler(handlers.SymbiotHandler(DefaultListener.handler(), filter_))
+            return client.add_handler(handlers.SymbiotHandler(DefaultListener.handler(), filter_), group=-1)
 
         @staticmethod
         def remove_listener(client: 'sym.Sym', handler: tuple):

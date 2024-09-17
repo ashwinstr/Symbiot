@@ -1,7 +1,8 @@
 """ configurations """
 
+import importlib
 import os
-from typing import Callable, List, Union, Any
+from typing import List, Any
 
 from pyrogram import filters
 
@@ -10,25 +11,36 @@ from sym import core
 
 class Config:
 
-    API_HASH = os.environ.get("API_HASH")
-    API_ID = int(os.environ.get("API_ID"))
-    BOT_TOKEN = os.environ.get("BOT_TOKEN")
-    CMD_TRIGGER = os.environ.get("CMD_TRIGGER", ".")
-    DB_NAME = os.environ.get("DB_NAME", "Symbiot")
+    API_HASH = ""
+    API_ID = ""
+    BOT_TOKEN = ""
+    CMD_TRIGGER = ""
+    DB_NAME = ""
     DB_URL = os.environ.get("DB_URL")
     DEFAULT_PLUGINS: List[dict] = []
     DOWNLOAD_DIR = "downloads"
     INIT_TASKS = []
-    LOG_CHANNEL_ID = int(os.environ.get("LOG_CHANNEL_ID", 0))
+    LOG_CHANNEL_ID = 0
     LOG_MODE = os.environ.get("LOG_MODE")
-    OWNER_ID = int(os.environ.get("OWNER_ID", 0))
-    SESSION_NAME = os.environ.get("SESSION_NAME", "Symbiot")
-    STRING_SESSION = os.environ.get("STRING_SESSION")
+    OWNER_ID = 0
+    SESSION_NAME = ""
+    STRING_SESSION = ""
     SUDO_COMMANDS = []
-    SUDO_TRIGGER = os.environ.get("SUDO_TRIGGER", "!")
+    SUDO_TRIGGER = ""
     SUDO_USERS = filters.user()
     TSUDO_USERS = filters.user()
     TEMP_DIR = "temp"
+    WORK_DIR = os.environ.get("WORK_DIR")
+
+    @staticmethod
+    def get_external_configs():
+        """ Load external configs """
+        for_import = Config.WORK_DIR + ".config"
+        module = importlib.import_module(for_import)
+        configs = vars(getattr(module, "Config"))
+        for var, val in configs.items():
+            if not var.startswith("_"):
+                setattr(Config, var, val)
 
     @staticmethod
     async def save(config_name: str, value: Any) -> Any:
@@ -64,3 +76,5 @@ class Config:
 
         def __init__(self, message: str):
             super().__init__(message)
+
+Config.get_external_configs()

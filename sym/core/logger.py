@@ -53,8 +53,11 @@ class Logger(Client):
         """ Log to console """
         logging.log(mode.value, message)
 
-    async def channel_log(self, message: str, dual: bool = False):
+    async def channel_log(self, name: str, message: str, dual: bool = False):
         """ Log to channel """
+        if not name:
+            name = __name__
+        log_message = f"**Logger:** #{name}\n\n{message}"
         if dual:
             self.console_log(message)
         await self.send_message(Config.LOG_CHANNEL_ID, message)

@@ -27,7 +27,7 @@ class Collection(AsyncIOMotorCollection):
     def __init__(self, name: str, log: bool = False, **kwargs: Any):
         self.log = log
         self.collection_name = name
-        super().__init__(db_client, name, **kwargs)
+        super().__init__(db_client, name, **kwargs)  # noqa
 
     async def dumps(self) -> str:
         string = ""
@@ -38,19 +38,18 @@ class Collection(AsyncIOMotorCollection):
     async def add(self, data: dict) -> int:
         """ Add an entry to the database """
         json_ = json.dumps(data, indent=4)
-        if "_id" in data.keys():
-            found = await self.find_one(data['_id'])
-        else:
+        if "_id" not in data.keys():
             raise self.InvalidDatabaseQuery("`Mandatory key '_id' not found in data.`")
+        found = await self.find_one(data['_id'])
         if not found:
             entry = await self.insert_one(data)
             if self.log:
                 logger.Logger.console_log(f"Entry added to name '{self.collection_name}':\n\n{json_}")
-        else:
-            await self.delete_one(found)
-            entry = await self.insert_one(data)
-            if self.log:
-                logger.Logger.console_log(f"Entry updated to name '{self.collection_name}':\n\n{json_}")
+            return entry.inserted_id
+        await self.delete_one(found)
+        entry = await self.insert_one(data)
+        if self.log:
+            logger.Logger.console_log(f"Entry updated to name '{self.collection_name}':\n\n{json_}")
         return entry.inserted_id
 
     async def get(self, query: dict) -> Mapping[str, Any] | None:
@@ -69,19 +68,19 @@ class Collection(AsyncIOMotorCollection):
             if self.log:
                 logger.Logger.console_log(f"Entry removed from collection '{self.collection_name}:\n\n{json_}")
             return True
-        else:
-            return False
+        return False
 
     async def drop(
         self,
         session = None,
         comment = None,
         encrypted_fields = None
-    ):
+    ) -> bool:
         """ Collection drop """
         await super().drop(session, comment, encrypted_fields)
         if self.log:
             logger.Logger.console_log(f"The entries in collection '{self.collection_name}'.")
+        return True
 
             
     class InvalidDatabaseQuery(Exception):
